@@ -6,8 +6,8 @@ import java.util.Set;
 
 public interface SorteioRepositoryPortOut {
 
-    /** Apaga o sorteio anterior e grava os pares novos (quem dá -> quem recebe). */
-    void substituirSorteio(Map<Long, Long> pares);
+    /** Apaga o sorteio anterior e grava os pares novos (quem dá -> quem recebe, já cifrado). */
+    void substituirSorteio(Map<Long, String> paresCifrados);
 
     void apagarSorteio();
 
@@ -17,8 +17,8 @@ public interface SorteioRepositoryPortOut {
 
     long countMembros();
 
-    /** Quem a pessoa tirou. Vazio se ela não tem par ou se quem ela tirou foi removido (use {@link #existsAtribuicao}). */
-    Optional<Long> findReceiverId(Long giverId);
+    /** O par de quem deu, ainda cifrado. Vazio se a pessoa não tem par. */
+    Optional<String> findReceiverCifrado(Long giverId);
 
-    boolean existsAtribuicao(Long giverId);
+    void atualizarReceiverCifrado(Long giverId, String receiverCifrado);
 }

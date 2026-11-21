@@ -7,6 +7,7 @@ import com.amigosecreto.v1.core.port.in.dto.response.participante.ParticipantePu
 import com.amigosecreto.v1.core.port.in.dto.response.participante.ParticipanteResponseDto;
 import com.amigosecreto.v1.core.port.in.dto.response.participante.ParticipanteTokenResponseDto;
 import com.amigosecreto.v1.security.AuthenticatedParticipanteId;
+import com.amigosecreto.v1.security.AuthenticatedParticipanteToken;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -56,6 +57,7 @@ public interface ParticipanteController {
     @Operation(summary = "Quem eu tirei", security = @SecurityRequirement(name = OpenApiConfig.PARTICIPANT_TOKEN))
     @GetMapping("/me/assignment")
     ResponseEntity<AtribuicaoResponseDto> buscarMeuAmigoSecreto(
-            @Parameter(hidden = true) @AuthenticatedParticipanteId Long participanteId
+            @Parameter(hidden = true) @AuthenticatedParticipanteId Long participanteId,
+            @Parameter(hidden = true) @AuthenticatedParticipanteToken String token
     );
 }

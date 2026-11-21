@@ -5,11 +5,14 @@ import com.amigosecreto.v1.core.port.in.ParticipantePortIn;
 import com.amigosecreto.v1.core.port.in.dto.request.participante.ParticipanteRequestDto;
 import com.amigosecreto.v1.core.port.out.configuracao.ConfiguracaoRepositoryPortOut;
 import com.amigosecreto.v1.core.port.out.participante.ParticipanteRepositoryPortOut;
+import com.amigosecreto.v1.core.port.out.sorteio.SorteioRepositoryPortOut;
 import com.amigosecreto.v1.shared.constant.Commons;
+import com.amigosecreto.v1.shared.cripto.ParSecreto;
 import com.amigosecreto.v1.shared.exception.ArquivoGrandeDemaisException;
 import com.amigosecreto.v1.shared.exception.NaoEncontradoException;
 import com.amigosecreto.v1.shared.token.TokenUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +23,7 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ParticipanteService implements ParticipantePortIn {
 
     private static final Pattern FOTO_DATA_URL =
@@ -27,6 +31,7 @@ public class ParticipanteService implements ParticipantePortIn {
 
     private final ParticipanteRepositoryPortOut participanteRepositoryPortOut;
     private final ConfiguracaoRepositoryPortOut configuracaoRepositoryPortOut;
+    private final SorteioRepositoryPortOut sorteioRepositoryPortOut;
 
     @Override
     @Transactional(readOnly = true)
@@ -95,7 +100,16 @@ public class ParticipanteService implements ParticipantePortIn {
     @Transactional
     public String gerarNovoLink(Long id) {
         Participante participante = buscarPorId(id);
+        String tokenAntigo = participante.getToken();
         String token = TokenUtil.gerarToken();
+
+        // O par foi cifrado com o link antigo: abre com ele e cifra de novo com o novo.
+        sorteioRepositoryPortOut.findReceiverCifrado(id).ifPresent(cifrado ->
+                ParSecreto.decifrar(tokenAntigo, id, cifrado).ifPresentOrElse(
+                        receiverId -> sorteioRepositoryPortOut.atualizarReceiverCifrado(
+                                id, ParSecreto.cifrar(token, id, receiverId)),
+                        () -> log.warn("Link trocado sem o antigo salvo: o par da pessoa {} se perdeu. Refaça o sorteio.", id)));
+
         participante.setTokenHash(TokenUtil.hash(token));
         participante.setToken(token);
         participante.setAtualizadoEm(Instant.now());

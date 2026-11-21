@@ -11,7 +11,8 @@ public interface SorteioPortIn {
 
     Configuracao reabrir();
 
-    MeuAmigoSecreto buscarMeuAmigoSecreto(Long participanteId);
+    /** O token de quem pergunta é a única chave que abre o par dela. */
+    MeuAmigoSecreto buscarMeuAmigoSecreto(Long participanteId, String token);
 
     Set<Long> idsNoSorteio();
 

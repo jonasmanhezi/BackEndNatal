@@ -31,6 +31,7 @@ public class AutenticacaoFilter extends OncePerRequestFilter {
 
     public static final String ADMIN_HEADER = "X-Admin-Key";
     public static final String ATRIBUTO_PARTICIPANTE_ID = "participanteId";
+    public static final String ATRIBUTO_PARTICIPANTE_TOKEN = "participanteToken";
     public static final String ROLE_PARTICIPANTE = "ROLE_PARTICIPANTE";
     public static final String ROLE_ADMIN = "ROLE_ADMIN";
 
@@ -94,10 +95,12 @@ public class AutenticacaoFilter extends OncePerRequestFilter {
             return;
         }
 
-        Optional<Long> participanteId = participanteService.buscarIdPorToken(header.substring(7));
+        String token = header.substring(7).trim();
+        Optional<Long> participanteId = participanteService.buscarIdPorToken(token);
         participanteId.ifPresent(id -> {
             autenticar(id, ROLE_PARTICIPANTE);
             request.setAttribute(ATRIBUTO_PARTICIPANTE_ID, id);
+            request.setAttribute(ATRIBUTO_PARTICIPANTE_TOKEN, token);
         });
     }
 

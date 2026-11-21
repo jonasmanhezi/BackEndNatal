@@ -50,8 +50,9 @@ public class ParticipanteEntity {
     @Column(name = "token_hash", nullable = false, unique = true)
     private String tokenHash;
 
-    @Column(name = "token")
-    private String token;
+    /** Token pessoal cifrado com a ADMIN_KEY (para o organizador reenviar o link). */
+    @Column(name = "token_cifrado", columnDefinition = "TEXT")
+    private String tokenCifrado;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

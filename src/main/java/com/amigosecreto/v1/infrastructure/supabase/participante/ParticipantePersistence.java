@@ -3,7 +3,9 @@ package com.amigosecreto.v1.infrastructure.supabase.participante;
 import com.amigosecreto.v1.core.domain.entity.participante.Participante;
 import com.amigosecreto.v1.core.port.out.participante.ParticipanteRepositoryPortOut;
 import com.amigosecreto.v1.infrastructure.model.ParticipanteEntity;
-import lombok.RequiredArgsConstructor;
+import com.amigosecreto.v1.shared.cripto.Cifra;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -14,10 +16,17 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
-@RequiredArgsConstructor
+@Slf4j
 public class ParticipantePersistence implements ParticipanteRepositoryPortOut {
 
     private final ParticipanteRepository participanteRepository;
+    private final String adminKey;
+
+    public ParticipantePersistence(ParticipanteRepository participanteRepository,
+                                   @Value("${app.admin-key:}") String adminKey) {
+        this.participanteRepository = participanteRepository;
+        this.adminKey = adminKey == null ? "" : adminKey.trim();
+    }
 
     @Override
     public List<Participante> findAll() {
@@ -69,7 +78,7 @@ public class ParticipantePersistence implements ParticipanteRepositoryPortOut {
                 .evitar(participante.getEvitar())
                 .manual(participante.isManual())
                 .tokenHash(participante.getTokenHash())
-                .token(participante.getToken())
+                .tokenCifrado(cifrarToken(participante.getToken(), participante.getTokenHash()))
                 .createdAt(toOffset(participante.getCriadoEm()))
                 .updatedAt(toOffset(participante.getAtualizadoEm()))
                 .build();
@@ -88,10 +97,28 @@ public class ParticipantePersistence implements ParticipanteRepositoryPortOut {
                 .evitar(entity.getEvitar())
                 .manual(entity.isManual())
                 .tokenHash(entity.getTokenHash())
-                .token(entity.getToken())
+                .token(decifrarToken(entity.getTokenCifrado(), entity.getTokenHash()))
                 .criadoEm(entity.getCreatedAt() == null ? null : entity.getCreatedAt().toInstant())
                 .atualizadoEm(entity.getUpdatedAt() == null ? null : entity.getUpdatedAt().toInstant())
                 .build();
+    }
+
+    /** Sem ADMIN_KEY não há como guardar o token: o organizador só consegue gerar links novos. */
+    private String cifrarToken(String token, String tokenHash) {
+        if (token == null || adminKey.isEmpty()) {
+            return null;
+        }
+        return Cifra.cifrar(adminKey, Cifra.PROPOSITO_TOKEN, token, tokenHash);
+    }
+
+    private String decifrarToken(String tokenCifrado, String tokenHash) {
+        if (tokenCifrado == null) {
+            return null;
+        }
+        return Cifra.decifrar(adminKey, Cifra.PROPOSITO_TOKEN, tokenCifrado, tokenHash).orElseGet(() -> {
+            log.warn("Não deu para decifrar um link salvo (a ADMIN_KEY mudou?). Gere um link novo para essa pessoa.");
+            return null;
+        });
     }
 
     private static OffsetDateTime toOffset(Instant instant) {

@@ -6,6 +6,8 @@ import com.amigosecreto.v1.core.port.in.SorteioPortIn;
 import com.amigosecreto.v1.core.port.out.configuracao.ConfiguracaoRepositoryPortOut;
 import com.amigosecreto.v1.core.port.out.participante.ParticipanteRepositoryPortOut;
 import com.amigosecreto.v1.core.port.out.sorteio.SorteioRepositoryPortOut;
+import com.amigosecreto.v1.shared.constant.Commons;
+import com.amigosecreto.v1.shared.cripto.ParSecreto;
 import com.amigosecreto.v1.shared.sorteio.SorteioCirculo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,10 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,14 +39,29 @@ public class SorteioService implements SorteioPortIn {
     public Configuracao sortear() {
         Configuracao configuracao = configuracaoRepositoryPortOut.buscarComBloqueio();
 
-        List<Long> ids = participanteRepositoryPortOut.findAllIds();
-        Map<Long, Long> pares = SorteioCirculo.sortear(ids, RANDOM);
+        List<Participante> participantes = participanteRepositoryPortOut.findAll();
 
-        sorteioRepositoryPortOut.substituirSorteio(pares);
+        List<String> semLink = participantes.stream()
+                .filter(p -> p.getToken() == null)
+                .map(Participante::getNome)
+                .collect(Collectors.toList());
+        if (!semLink.isEmpty()) {
+            throw new IllegalStateException(String.format(Commons.MSG_SORTEIO_SEM_LINK, String.join(", ", semLink)));
+        }
+
+        Map<Long, String> tokens = participantes.stream()
+                .collect(Collectors.toMap(Participante::getId, Participante::getToken));
+        Map<Long, Long> pares = SorteioCirculo.sortear(List.copyOf(tokens.keySet()), RANDOM);
+
+        Map<Long, String> paresCifrados = new HashMap<>();
+        pares.forEach((giverId, receiverId) ->
+                paresCifrados.put(giverId, ParSecreto.cifrar(tokens.get(giverId), giverId, receiverId)));
+
+        sorteioRepositoryPortOut.substituirSorteio(paresCifrados);
 
         configuracao.setStatus(Configuracao.StatusSorteio.DRAWN);
         configuracao.setSorteadoEm(Instant.now());
-        log.info("Sorteio feito com {} pessoas", ids.size());
+        log.info("Sorteio feito com {} pessoas", pares.size());
         return configuracaoRepositoryPortOut.salvar(configuracao);
     }
 
@@ -61,17 +80,18 @@ public class SorteioService implements SorteioPortIn {
 
     @Override
     @Transactional(readOnly = true)
-    public MeuAmigoSecreto buscarMeuAmigoSecreto(Long participanteId) {
+    public MeuAmigoSecreto buscarMeuAmigoSecreto(Long participanteId, String token) {
         if (!configuracaoRepositoryPortOut.buscar().isSorteado()) {
             return new MeuAmigoSecreto(null, MeuAmigoSecreto.NAO_SORTEADO);
         }
 
-        if (!sorteioRepositoryPortOut.isMembro(participanteId)
-                || !sorteioRepositoryPortOut.existsAtribuicao(participanteId)) {
+        Optional<String> receiverCifrado = sorteioRepositoryPortOut.findReceiverCifrado(participanteId);
+        if (!sorteioRepositoryPortOut.isMembro(participanteId) || receiverCifrado.isEmpty()) {
             return new MeuAmigoSecreto(null, MeuAmigoSecreto.ENTROU_DEPOIS);
         }
 
-        Optional<Participante> amigo = sorteioRepositoryPortOut.findReceiverId(participanteId)
+        // Se quem foi tirado saiu (ou o par não abre), a corrente quebrou: o organizador refaz o sorteio.
+        Optional<Participante> amigo = ParSecreto.decifrar(token, participanteId, receiverCifrado.get())
                 .flatMap(participanteRepositoryPortOut::findById);
 
         return amigo

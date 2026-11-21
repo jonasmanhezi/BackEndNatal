@@ -57,8 +57,8 @@ public class ParticipanteControllerImpl implements ParticipanteController {
     }
 
     @Override
-    public ResponseEntity<AtribuicaoResponseDto> buscarMeuAmigoSecreto(Long participanteId) {
-        SorteioPortIn.MeuAmigoSecreto resultado = sorteioService.buscarMeuAmigoSecreto(participanteId);
+    public ResponseEntity<AtribuicaoResponseDto> buscarMeuAmigoSecreto(Long participanteId, String token) {
+        SorteioPortIn.MeuAmigoSecreto resultado = sorteioService.buscarMeuAmigoSecreto(participanteId, token);
         return ResponseEntity.ok(AtribuicaoResponseDto.builder()
                 .amigoSecreto(resultado.amigoSecreto() == null ? null
                         : RespostaMapper.toAmigoSecretoDto(resultado.amigoSecreto()))

@@ -6,6 +6,8 @@ import com.amigosecreto.v1.core.port.in.ParticipantePortIn.CadastroResultado;
 import com.amigosecreto.v1.core.port.in.dto.request.participante.ParticipanteRequestDto;
 import com.amigosecreto.v1.core.port.out.configuracao.ConfiguracaoRepositoryPortOut;
 import com.amigosecreto.v1.core.port.out.participante.ParticipanteRepositoryPortOut;
+import com.amigosecreto.v1.core.port.out.sorteio.SorteioRepositoryPortOut;
+import com.amigosecreto.v1.shared.cripto.ParSecreto;
 import com.amigosecreto.v1.shared.constant.Commons;
 import com.amigosecreto.v1.shared.exception.ArquivoGrandeDemaisException;
 import com.amigosecreto.v1.shared.token.TokenUtil;
@@ -27,13 +29,16 @@ class ParticipanteServiceTest {
 
     private ParticipanteRepositoryPortOut participanteRepository;
     private ConfiguracaoRepositoryPortOut configuracaoRepository;
+    private SorteioRepositoryPortOut sorteioRepository;
     private ParticipanteService service;
 
     @BeforeEach
     void setUp() {
         participanteRepository = mock(ParticipanteRepositoryPortOut.class);
         configuracaoRepository = mock(ConfiguracaoRepositoryPortOut.class);
-        service = new ParticipanteService(participanteRepository, configuracaoRepository);
+        sorteioRepository = mock(SorteioRepositoryPortOut.class);
+        when(sorteioRepository.findReceiverCifrado(any())).thenReturn(java.util.Optional.empty());
+        service = new ParticipanteService(participanteRepository, configuracaoRepository, sorteioRepository);
         when(participanteRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(configuracaoRepository.buscar()).thenReturn(configuracao(Configuracao.StatusSorteio.OPEN));
     }
@@ -85,6 +90,23 @@ class ParticipanteServiceTest {
         assertFalse(novo.equals(tokenAntigo));
         assertEquals(novo, antigo.getToken());
         assertEquals(TokenUtil.hash(novo), antigo.getTokenHash());
+    }
+
+    @Test
+    void gerarNovoLink_depoisDoSorteio_recifraOParComONovoLink() {
+        Participante celia = service.cadastrarPeloOrganizador(request("Dona Célia")).participante();
+        String tokenAntigo = celia.getToken();
+        celia.setId(7L);
+        when(participanteRepository.findById(7L)).thenReturn(java.util.Optional.of(celia));
+        when(sorteioRepository.findReceiverCifrado(7L))
+                .thenReturn(java.util.Optional.of(ParSecreto.cifrar(tokenAntigo, 7L, 3L)));
+
+        String novo = service.gerarNovoLink(7L);
+
+        org.mockito.ArgumentCaptor<String> recifrado = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(sorteioRepository).atualizarReceiverCifrado(org.mockito.ArgumentMatchers.eq(7L), recifrado.capture());
+        assertEquals(java.util.Optional.of(3L), ParSecreto.decifrar(novo, 7L, recifrado.getValue()));
+        assertTrue(ParSecreto.decifrar(tokenAntigo, 7L, recifrado.getValue()).isEmpty());
     }
 
     @Test

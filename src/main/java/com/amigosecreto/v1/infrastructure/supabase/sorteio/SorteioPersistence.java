@@ -21,13 +21,13 @@ public class SorteioPersistence implements SorteioRepositoryPortOut {
     private final SorteioMembroRepository sorteioMembroRepository;
 
     @Override
-    public void substituirSorteio(Map<Long, Long> pares) {
+    public void substituirSorteio(Map<Long, String> pares) {
         apagarSorteio();
 
         List<AtribuicaoEntity> atribuicoes = pares.entrySet().stream()
                 .map(par -> AtribuicaoEntity.builder()
                         .giverId(par.getKey())
-                        .receiverId(par.getValue())
+                        .receiverCifrado(par.getValue())
                         .build())
                 .collect(Collectors.toList());
 
@@ -61,12 +61,15 @@ public class SorteioPersistence implements SorteioRepositoryPortOut {
     }
 
     @Override
-    public Optional<Long> findReceiverId(Long giverId) {
-        return atribuicaoRepository.findById(giverId).map(AtribuicaoEntity::getReceiverId);
+    public Optional<String> findReceiverCifrado(Long giverId) {
+        return atribuicaoRepository.findById(giverId).map(AtribuicaoEntity::getReceiverCifrado);
     }
 
     @Override
-    public boolean existsAtribuicao(Long giverId) {
-        return atribuicaoRepository.existsById(giverId);
+    public void atualizarReceiverCifrado(Long giverId, String receiverCifrado) {
+        atribuicaoRepository.save(AtribuicaoEntity.builder()
+                .giverId(giverId)
+                .receiverCifrado(receiverCifrado)
+                .build());
     }
 }

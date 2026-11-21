@@ -18,7 +18,7 @@ public class AtribuicaoEntity {
     @Column(name = "giver_id")
     private Long giverId;
 
-    /** Fica nulo se quem foi tirado sair depois do sorteio. */
-    @Column(name = "receiver_id")
-    private Long receiverId;
+    /** Id de quem foi tirado, cifrado com o token pessoal de quem deu. */
+    @Column(name = "receiver_cifrado", nullable = false, columnDefinition = "TEXT")
+    private String receiverCifrado;
 }

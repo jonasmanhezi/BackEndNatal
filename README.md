@@ -9,6 +9,8 @@ Mesma arquitetura do Bolão: Spring Boot 4 + Java 17, hexagonal (`api/rest` → 
 - **Sem contas.** Quem se cadastra recebe um token pessoal (vai no link `#t=...`). O banco guarda só o hash SHA-256.
 - **Organizador** entra com a chave `ADMIN_KEY` (link `#admin=...`, header `X-Admin-Key`).
 - **O sorteio roda no servidor** (círculo único com Fisher–Yates e `SecureRandom`): ninguém tira a si mesmo e não há par fechado. Nenhuma rota devolve a lista de pares, nem para o organizador.
+- **Nem quem tem acesso ao banco vê os pares.** Cada par é cifrado (AES-256-GCM) com o link pessoal de quem deu, então só abrindo aquele link dá para ler. Os links guardados para o organizador reenviar ficam cifrados com a `ADMIN_KEY`, que mora no Render e não no banco. No Supabase aparecem nomes e tamanhos; pares e links aparecem embaralhados.
+- Se a `ADMIN_KEY` mudar, os links salvos deixam de abrir no painel (os pares continuam valendo): gere links novos para quem precisar.
 - Limite de tentativas: 10 chaves erradas por IP a cada 15 min e 30 cadastros por IP por hora.
 
 ## Rodar local
@@ -53,10 +55,10 @@ core/domain/entity       Configuracao, Participante
 core/port/in             ConfiguracaoPortIn, ParticipantePortIn, SorteioPortIn + DTOs
 core/port/out            portas de repositório
 core/application/service ConfiguracaoService, ParticipanteService, SorteioService
-infrastructure/model     entidades JPA (tb_configuracao, tb_participante, tb_atribuicao, tb_sorteio_membro)
+infrastructure/model     entidades JPA (tb_configuracao, tb_participante, tb_atribuicao cifrada, tb_sorteio_membro)
 infrastructure/supabase  repositórios JPA + adaptadores (Persistence)
 security                 AutenticacaoFilter (token pessoal / chave do organizador), SecurityConfig
-shared                   SorteioCirculo, TokenUtil, LimitadorTentativas, mensagens
+shared                   SorteioCirculo, TokenUtil, Cifra/ParSecreto, LimitadorTentativas, mensagens
 ```
 
 ## Rotas

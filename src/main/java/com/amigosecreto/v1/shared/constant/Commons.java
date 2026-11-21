@@ -23,6 +23,9 @@ public final class Commons {
 
     public static final String MSG_MUITAS_TENTATIVAS = "Muitas tentativas. Espere alguns minutos e tente de novo.";
 
+    public static final String MSG_SORTEIO_SEM_LINK =
+            "Gere um link novo para estas pessoas antes de sortear: %s.";
+
     /** ~200 KB de imagem viram ~270 mil caracteres em base64. */
     public static final int FOTO_MAX_CARACTERES = 280_000;
 
