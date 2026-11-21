@@ -8,6 +8,7 @@ import com.amigosecreto.v1.core.port.out.participante.ParticipanteRepositoryPort
 import com.amigosecreto.v1.core.port.out.sorteio.SorteioRepositoryPortOut;
 import com.amigosecreto.v1.shared.constant.Commons;
 import com.amigosecreto.v1.shared.cripto.ParSecreto;
+import com.amigosecreto.v1.shared.participante.NomeUtil;
 import com.amigosecreto.v1.shared.sorteio.SorteioCirculo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,17 @@ public class SorteioService implements SorteioPortIn {
                 .collect(Collectors.toList());
         if (!semLink.isEmpty()) {
             throw new IllegalStateException(String.format(Commons.MSG_SORTEIO_SEM_LINK, String.join(", ", semLink)));
+        }
+
+        // Cadastros duplicados de antes da trava de nomes: a mesma pessoa contaria duas vezes.
+        List<String> repetidos = participantes.stream()
+                .collect(Collectors.groupingBy(p -> NomeUtil.normalizar(p.getNome())))
+                .values().stream()
+                .filter(grupo -> grupo.size() > 1)
+                .map(grupo -> grupo.get(0).getNome())
+                .collect(Collectors.toList());
+        if (!repetidos.isEmpty()) {
+            throw new IllegalStateException(String.format(Commons.MSG_SORTEIO_NOMES_REPETIDOS, String.join(", ", repetidos)));
         }
 
         Map<Long, String> tokens = participantes.stream()

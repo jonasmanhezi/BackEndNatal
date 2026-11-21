@@ -79,6 +79,41 @@ class SorteioServiceTest {
     }
 
     @Test
+    void sortear_cadastroDuplicado_recusaEDizQuem() {
+        Participante jonas1 = pessoa(1L); jonas1.setNome("Jonas");
+        Participante jonas2 = pessoa(2L); jonas2.setNome(" jônas ");
+        when(configuracaoRepository.buscarComBloqueio()).thenReturn(configuracao(Configuracao.StatusSorteio.OPEN));
+        when(participanteRepository.findAll()).thenReturn(List.of(jonas1, jonas2, pessoa(3L), pessoa(4L)));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.sortear());
+        assertTrue(ex.getMessage().contains("Jonas"));
+        verify(sorteioRepository, never()).substituirSorteio(any());
+    }
+
+    @Test
+    void sortear_cadaUmRecebeDeExatamenteUmaPessoa_emMilSorteios() {
+        List<Participante> pessoas = new java.util.ArrayList<>();
+        for (long i = 1; i <= 12; i++) pessoas.add(pessoa(i));
+        when(configuracaoRepository.buscarComBloqueio()).thenAnswer(inv -> configuracao(Configuracao.StatusSorteio.OPEN));
+        when(participanteRepository.findAll()).thenReturn(pessoas);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<Long, String>> pares = ArgumentCaptor.forClass(Map.class);
+
+        for (int rodada = 0; rodada < 1000; rodada++) service.sortear();
+
+        verify(sorteioRepository, org.mockito.Mockito.times(1000)).substituirSorteio(pares.capture());
+        for (Map<Long, String> sorteio : pares.getAllValues()) {
+            java.util.Set<Long> recebem = new java.util.HashSet<>();
+            sorteio.forEach((giverId, cifrado) -> {
+                Long receiver = ParSecreto.decifrar(token(giverId), giverId, cifrado).orElseThrow();
+                assertTrue(!receiver.equals(giverId), "tirou a si mesmo");
+                assertTrue(recebem.add(receiver), "duas pessoas tiraram " + receiver);
+            });
+            assertEquals(12, recebem.size());
+        }
+    }
+
+    @Test
     void sortear_comDuasPessoas_naoGravaNada() {
         when(configuracaoRepository.buscarComBloqueio()).thenReturn(configuracao(Configuracao.StatusSorteio.OPEN));
         when(participanteRepository.findAll()).thenReturn(List.of(pessoa(1L), pessoa(2L)));

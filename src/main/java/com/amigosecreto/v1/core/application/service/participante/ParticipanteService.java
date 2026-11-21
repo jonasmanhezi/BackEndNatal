@@ -10,6 +10,7 @@ import com.amigosecreto.v1.shared.constant.Commons;
 import com.amigosecreto.v1.shared.cripto.ParSecreto;
 import com.amigosecreto.v1.shared.exception.ArquivoGrandeDemaisException;
 import com.amigosecreto.v1.shared.exception.NaoEncontradoException;
+import com.amigosecreto.v1.shared.participante.NomeUtil;
 import com.amigosecreto.v1.shared.token.TokenUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +59,7 @@ public class ParticipanteService implements ParticipantePortIn {
     @Override
     @Transactional
     public CadastroResultado cadastrar(ParticipanteRequestDto request) {
-        if (configuracaoRepositoryPortOut.buscar().isSorteado()) {
+        if (configuracaoRepositoryPortOut.buscarComBloqueio().isSorteado()) {
             throw new IllegalStateException(Commons.MSG_SORTEIO_JA_FEITO);
         }
         return criar(request, false);
@@ -67,14 +68,17 @@ public class ParticipanteService implements ParticipantePortIn {
     @Override
     @Transactional
     public CadastroResultado cadastrarPeloOrganizador(ParticipanteRequestDto request) {
+        configuracaoRepositoryPortOut.buscarComBloqueio();
         return criar(request, true);
     }
 
     @Override
     @Transactional
     public Participante atualizar(Long id, ParticipanteRequestDto request) {
+        configuracaoRepositoryPortOut.buscarComBloqueio();
         Participante participante = buscarPorId(id);
         preencher(participante, request);
+        validarNomeUnico(participante.getNome(), id);
         participante.setAtualizadoEm(Instant.now());
         return participanteRepositoryPortOut.save(participante);
     }
@@ -82,7 +86,7 @@ public class ParticipanteService implements ParticipantePortIn {
     @Override
     @Transactional
     public void sair(Long id) {
-        if (configuracaoRepositoryPortOut.buscar().isSorteado()) {
+        if (configuracaoRepositoryPortOut.buscarComBloqueio().isSorteado()) {
             throw new IllegalStateException(Commons.MSG_SAIR_DEPOIS_DO_SORTEIO);
         }
         participanteRepositoryPortOut.deleteById(id);
@@ -91,6 +95,7 @@ public class ParticipanteService implements ParticipantePortIn {
     @Override
     @Transactional
     public void remover(Long id) {
+        configuracaoRepositoryPortOut.buscarComBloqueio();
         if (participanteRepositoryPortOut.existsById(id)) {
             participanteRepositoryPortOut.deleteById(id);
         }
@@ -99,6 +104,8 @@ public class ParticipanteService implements ParticipantePortIn {
     @Override
     @Transactional
     public String gerarNovoLink(Long id) {
+        // Espera um sorteio em andamento terminar: senão o par novo poderia ser sobrescrito pelo antigo.
+        configuracaoRepositoryPortOut.buscarComBloqueio();
         Participante participante = buscarPorId(id);
         String tokenAntigo = participante.getToken();
         String token = TokenUtil.gerarToken();
@@ -129,8 +136,19 @@ public class ParticipanteService implements ParticipantePortIn {
                 .atualizadoEm(agora)
                 .build();
         preencher(participante, request);
+        validarNomeUnico(participante.getNome(), null);
 
         return new CadastroResultado(participanteRepositoryPortOut.save(participante), token);
+    }
+
+    /** A mesma pessoa cadastrada duas vezes viraria duas pessoas no sorteio (e poderia tirar a si mesma). */
+    private void validarNomeUnico(String nome, Long idAtual) {
+        String normalizado = NomeUtil.normalizar(nome);
+        boolean repetido = participanteRepositoryPortOut.findAll().stream()
+                .anyMatch(p -> !p.getId().equals(idAtual) && NomeUtil.normalizar(p.getNome()).equals(normalizado));
+        if (repetido) {
+            throw new IllegalStateException(String.format(Commons.MSG_NOME_REPETIDO, nome));
+        }
     }
 
     private void preencher(Participante participante, ParticipanteRequestDto request) {

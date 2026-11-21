@@ -40,7 +40,7 @@ class ParticipanteServiceTest {
         when(sorteioRepository.findReceiverCifrado(any())).thenReturn(java.util.Optional.empty());
         service = new ParticipanteService(participanteRepository, configuracaoRepository, sorteioRepository);
         when(participanteRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(configuracaoRepository.buscar()).thenReturn(configuracao(Configuracao.StatusSorteio.OPEN));
+        when(configuracaoRepository.buscarComBloqueio()).thenReturn(configuracao(Configuracao.StatusSorteio.OPEN));
     }
 
     @Test
@@ -57,7 +57,7 @@ class ParticipanteServiceTest {
 
     @Test
     void cadastrar_depoisDoSorteio_conflito() {
-        when(configuracaoRepository.buscar()).thenReturn(configuracao(Configuracao.StatusSorteio.DRAWN));
+        when(configuracaoRepository.buscarComBloqueio()).thenReturn(configuracao(Configuracao.StatusSorteio.DRAWN));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.cadastrar(request("Tio Beto")));
         assertEquals(Commons.MSG_SORTEIO_JA_FEITO, ex.getMessage());
@@ -65,14 +65,14 @@ class ParticipanteServiceTest {
 
     @Test
     void cadastrarPeloOrganizador_depoisDoSorteio_permitido() {
-        when(configuracaoRepository.buscar()).thenReturn(configuracao(Configuracao.StatusSorteio.DRAWN));
+        when(configuracaoRepository.buscarComBloqueio()).thenReturn(configuracao(Configuracao.StatusSorteio.DRAWN));
 
         assertTrue(service.cadastrarPeloOrganizador(request("Tio Beto")).participante().isManual());
     }
 
     @Test
     void sair_depoisDoSorteio_conflito() {
-        when(configuracaoRepository.buscar()).thenReturn(configuracao(Configuracao.StatusSorteio.DRAWN));
+        when(configuracaoRepository.buscarComBloqueio()).thenReturn(configuracao(Configuracao.StatusSorteio.DRAWN));
 
         assertThrows(IllegalStateException.class, () -> service.sair(1L));
         verify(participanteRepository, never()).deleteById(any());
@@ -107,6 +107,48 @@ class ParticipanteServiceTest {
         verify(sorteioRepository).atualizarReceiverCifrado(org.mockito.ArgumentMatchers.eq(7L), recifrado.capture());
         assertEquals(java.util.Optional.of(3L), ParSecreto.decifrar(novo, 7L, recifrado.getValue()));
         assertTrue(ParSecreto.decifrar(tokenAntigo, 7L, recifrado.getValue()).isEmpty());
+    }
+
+    @Test
+    void cadastrar_nomeRepetido_mesmoComAcentoEMaiusculas_conflito() {
+        when(participanteRepository.findAll()).thenReturn(java.util.List.of(
+                Participante.builder().id(1L).nome("Dona Célia").build()));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> service.cadastrar(request("  dona   CELIA ")));
+        assertTrue(ex.getMessage().contains("Já tem alguém chamado"));
+        verify(participanteRepository, never()).save(any());
+    }
+
+    @Test
+    void cadastrarPeloOrganizador_nomeRepetido_conflito() {
+        when(participanteRepository.findAll()).thenReturn(java.util.List.of(
+                Participante.builder().id(1L).nome("Jonas").build()));
+
+        assertThrows(IllegalStateException.class, () -> service.cadastrarPeloOrganizador(request("jonas")));
+    }
+
+    @Test
+    void atualizar_mantendoOProprioNome_permitido_mudandoParaNomeDeOutro_conflito() {
+        Participante jonas = Participante.builder().id(1L).nome("Jonas").build();
+        Participante marina = Participante.builder().id(2L).nome("Marina").build();
+        when(participanteRepository.findAll()).thenReturn(java.util.List.of(jonas, marina));
+        when(participanteRepository.findById(1L)).thenReturn(java.util.Optional.of(jonas));
+
+        assertEquals("Jonas", service.atualizar(1L, request("Jonas")).getNome());
+        assertThrows(IllegalStateException.class, () -> service.atualizar(1L, request("MARINA")));
+    }
+
+    @Test
+    void gerarNovoLink_esperaOSorteioTerminar() {
+        Participante celia = Participante.builder().id(7L).nome("Dona Célia").token("t").build();
+        when(participanteRepository.findById(7L)).thenReturn(java.util.Optional.of(celia));
+
+        service.gerarNovoLink(7L);
+
+        org.mockito.InOrder ordem = org.mockito.Mockito.inOrder(configuracaoRepository, sorteioRepository);
+        ordem.verify(configuracaoRepository).buscarComBloqueio();
+        ordem.verify(sorteioRepository).findReceiverCifrado(7L);
     }
 
     @Test

@@ -26,6 +26,12 @@ public final class Commons {
     public static final String MSG_SORTEIO_SEM_LINK =
             "Gere um link novo para estas pessoas antes de sortear: %s.";
 
+    public static final String MSG_NOME_REPETIDO =
+            "Já tem alguém chamado %s no sorteio. Se for você, abra o seu link pessoal; se for outra pessoa, coloque o sobrenome.";
+
+    public static final String MSG_SORTEIO_NOMES_REPETIDOS =
+            "Tem nomes repetidos no sorteio: %s. Remova a pessoa duplicada antes de sortear.";
+
     /** ~200 KB de imagem viram ~270 mil caracteres em base64. */
     public static final int FOTO_MAX_CARACTERES = 280_000;
 
