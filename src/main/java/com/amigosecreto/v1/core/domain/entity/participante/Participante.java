@@ -24,6 +24,8 @@ public class Participante {
     private String evitar;
     private boolean manual;
     private String tokenHash;
+    /** Link pessoal em texto, para o organizador reenviar. Nulo em cadastros antigos. */
+    private String token;
     private Instant criadoEm;
     private Instant atualizadoEm;
 

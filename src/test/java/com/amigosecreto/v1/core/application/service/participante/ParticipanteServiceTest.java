@@ -45,6 +45,7 @@ class ParticipanteServiceTest {
         Participante salvo = resultado.participante();
         assertEquals("Dona Célia", salvo.getNome());
         assertEquals(TokenUtil.hash(resultado.token()), salvo.getTokenHash());
+        assertEquals(resultado.token(), salvo.getToken());
         assertFalse(salvo.isManual());
         assertEquals("", salvo.getCalcado());
     }
@@ -70,6 +71,20 @@ class ParticipanteServiceTest {
 
         assertThrows(IllegalStateException.class, () -> service.sair(1L));
         verify(participanteRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void gerarNovoLink_trocaTokenEHash() {
+        Participante antigo = service.cadastrarPeloOrganizador(request("Dona Célia")).participante();
+        String tokenAntigo = antigo.getToken();
+        antigo.setId(7L);
+        when(participanteRepository.findById(7L)).thenReturn(java.util.Optional.of(antigo));
+
+        String novo = service.gerarNovoLink(7L);
+
+        assertFalse(novo.equals(tokenAntigo));
+        assertEquals(novo, antigo.getToken());
+        assertEquals(TokenUtil.hash(novo), antigo.getTokenHash());
     }
 
     @Test

@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Cadastro completo + estado no sorteio. Nunca inclui o par. */
+/** Cadastro completo + estado no sorteio + link pessoal. Nunca inclui o par. */
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,4 +23,8 @@ public class ParticipanteAdminResponseDto {
 
     @JsonProperty("inDraw")
     private boolean noSorteio;
+
+    /** Link pessoal para o organizador mandar pelo WhatsApp. Nulo em cadastros antigos. */
+    @JsonProperty("token")
+    private String token;
 }

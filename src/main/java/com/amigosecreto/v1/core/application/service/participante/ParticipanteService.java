@@ -97,6 +97,7 @@ public class ParticipanteService implements ParticipantePortIn {
         Participante participante = buscarPorId(id);
         String token = TokenUtil.gerarToken();
         participante.setTokenHash(TokenUtil.hash(token));
+        participante.setToken(token);
         participante.setAtualizadoEm(Instant.now());
         participanteRepositoryPortOut.save(participante);
         return token;
@@ -109,6 +110,7 @@ public class ParticipanteService implements ParticipantePortIn {
         Participante participante = Participante.builder()
                 .manual(manual)
                 .tokenHash(TokenUtil.hash(token))
+                .token(token)
                 .criadoEm(agora)
                 .atualizadoEm(agora)
                 .build();

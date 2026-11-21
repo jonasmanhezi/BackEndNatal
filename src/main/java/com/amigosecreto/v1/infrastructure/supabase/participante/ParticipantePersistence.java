@@ -69,6 +69,7 @@ public class ParticipantePersistence implements ParticipanteRepositoryPortOut {
                 .evitar(participante.getEvitar())
                 .manual(participante.isManual())
                 .tokenHash(participante.getTokenHash())
+                .token(participante.getToken())
                 .createdAt(toOffset(participante.getCriadoEm()))
                 .updatedAt(toOffset(participante.getAtualizadoEm()))
                 .build();
@@ -87,6 +88,7 @@ public class ParticipantePersistence implements ParticipanteRepositoryPortOut {
                 .evitar(entity.getEvitar())
                 .manual(entity.isManual())
                 .tokenHash(entity.getTokenHash())
+                .token(entity.getToken())
                 .criadoEm(entity.getCreatedAt() == null ? null : entity.getCreatedAt().toInstant())
                 .atualizadoEm(entity.getUpdatedAt() == null ? null : entity.getUpdatedAt().toInstant())
                 .build();

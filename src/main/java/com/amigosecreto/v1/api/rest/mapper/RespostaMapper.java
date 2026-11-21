@@ -11,7 +11,7 @@ import com.amigosecreto.v1.core.port.in.dto.response.participante.ParticipanteRe
 import java.time.Instant;
 import java.time.LocalDate;
 
-/** Domínio -> DTO. Nada daqui expõe token_hash nem os pares do sorteio. */
+/** Domínio -> DTO. Nada daqui expõe os pares do sorteio; o token só vai na visão do organizador. */
 public final class RespostaMapper {
 
     private RespostaMapper() {
@@ -61,6 +61,7 @@ public final class RespostaMapper {
                 .participante(toDto(participante))
                 .completo(participante.isCompleto())
                 .noSorteio(noSorteio)
+                .token(participante.getToken())
                 .build();
     }
 
